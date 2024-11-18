@@ -3,7 +3,7 @@ import streamlit as st
 # Title
 st.title("EASY-WPW Localization Algorithm")
 
-# Initialize session state to manage steps and answers
+# Initialize session state for managing steps and answers
 if "step" not in st.session_state:
     st.session_state["step"] = 1
 if "answers" not in st.session_state:
@@ -20,11 +20,10 @@ def reset():
     st.session_state["pathway"] = None
     st.session_state["result"] = None
 
-# Function to update state dynamically when answers change
+# Function to dynamically update state when answers change
 def update_state(step, answer_key, value):
     st.session_state["answers"][answer_key] = value
     st.session_state["step"] = step
-    st.session_state["pathway"] = None if step == 1 else st.session_state["pathway"]
     st.session_state["result"] = None if step < 6 else st.session_state["result"]
 
 # Step 1: Lead V1 Polarity
@@ -43,7 +42,7 @@ if st.session_state["step"] >= 1:
     elif v1_polarity == "Positive":
         st.session_state["pathway"] = "Mitral Valve"
 
-# Show pathway based on Step 1
+# Show pathway
 if st.session_state["pathway"]:
     st.write(f"**Current Pathway: {st.session_state['pathway']}**")
 
@@ -70,7 +69,7 @@ if st.session_state["step"] >= 2:
             format_func=lambda x: "Select..." if x == "" else x
         )
 
-# Step 3: Tricuspid QRS ≤ V3
+# Step 3: Delta Wave Analysis (Tricuspid Pathway, QRS ≤ V3)
 if st.session_state["step"] == 3 and st.session_state["pathway"] == "Tricuspid Valve":
     st.header("Step 3: Delta Wave Analysis (Tricuspid Pathway, QRS ≤ V3)")
     delta_wave = st.radio(
@@ -86,21 +85,25 @@ if st.session_state["step"] == 3 and st.session_state["pathway"] == "Tricuspid V
     elif delta_wave == "Leads aVL or aVR":
         st.session_state["result"] = "Posteroseptal (PS)"
 
-# Step 4: Tricuspid QRS > V3
+# Step 4: Delta Wave Analysis (Tricuspid Pathway, QRS > V3)
 if st.session_state["step"] == 4 and st.session_state["pathway"] == "Tricuspid Valve":
     st.header("Step 3: Delta Wave Analysis (Tricuspid Pathway, QRS > V3)")
     delta_wave = st.radio(
         "Where is the most positive delta wave?",
-        options=["", "Leads II or III", "Leads aVL or aVR"],
-        key="delta_tricuspid_late",
+        options=["", "II", "III", "aVR", "aVL"],
+        key="delta_tricuspid_v3",
         on_change=update_state,
-        args=(6, "Step 3", st.session_state.get("delta_tricuspid_late")),
+        args=(6, "Step 3", st.session_state.get("delta_tricuspid_v3")),
         format_func=lambda x: "Select..." if x == "" else x
     )
-    if delta_wave == "Leads II or III":
+    if delta_wave == "II":
+        st.session_state["result"] = "Anterolateral (AL)"
+    elif delta_wave == "III":
         st.session_state["result"] = "Anteroseptal (AS)"
-    elif delta_wave == "Leads aVL or aVR":
+    elif delta_wave == "aVR":
         st.session_state["result"] = "Posteroseptal (PS)"
+    elif delta_wave == "aVL":
+        st.session_state["result"] = "Posterolateral (PL)"
 
 # Step 5: Mitral Pathway Refinement
 if st.session_state["step"] == 5 and st.session_state["pathway"] == "Mitral Valve":
