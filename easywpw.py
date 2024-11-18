@@ -3,63 +3,101 @@ import streamlit as st
 # Title
 st.title("EASY-WPW Localization Algorithm")
 
+# Initialize session state for question flow control
+if "step" not in st.session_state:
+    st.session_state["step"] = 1
+if "result" not in st.session_state:
+    st.session_state["result"] = None
+
+# Function to reset session state for starting over
+def reset():
+    st.session_state["step"] = 1
+    st.session_state["result"] = None
+
 # Step 1: Lead V1 Polarity
-st.header("Step 1: Lead V1 Polarity")
-v1_polarity = st.radio("What is the delta wave polarity in lead V1?", ["Positive", "Negative/Isoelectric"], key="v1")
-
-# Determine the pathway based on Step 1
-if v1_polarity == "Negative/Isoelectric":
-    valve_pathway = "Tricuspid Valve"
-else:
-    valve_pathway = "Mitral Valve"
-st.write(f"**Current Pathway: {valve_pathway}**")
-
-# Proceed based on the selected pathway
-if valve_pathway == "Tricuspid Valve":
-    # Step 2: Tricuspid QRS Transition
-    st.header("Step 2: Tricuspid Valve Pathway")
-    qrs_transition = st.radio("Is the QRS transition ≤ V3?", ["Yes", "No"], key="qrs_tricuspid")
+if st.session_state["step"] == 1:
+    st.header("Step 1: Lead V1 Polarity")
+    v1_polarity = st.radio("What is the delta wave polarity in lead V1?", ["", "Positive", "Negative/Isoelectric"], index=0, key="v1_polarity")
     
-    if qrs_transition == "Yes":
-        # Step 3: Most Positive Delta Wave (Tricuspid ≤ V3)
-        st.header("Step 3: Delta Wave Analysis (Tricuspid Pathway, QRS ≤ V3)")
-        delta_wave = st.radio("Where is the most positive delta wave?", ["Leads II or III", "Leads aVL or aVR"], key="delta_tricuspid")
-        
-        # Final diagnosis for Tricuspid (QRS ≤ V3)
-        if delta_wave == "Leads II or III":
-            result = "Anteroseptal (AS)"
+    if v1_polarity:
+        if v1_polarity == "Negative/Isoelectric":
+            st.session_state["pathway"] = "Tricuspid Valve"
         else:
-            result = "Posteroseptal (PS)"
+            st.session_state["pathway"] = "Mitral Valve"
+        st.session_state["step"] = 2
+        st.experimental_rerun()
+
+# Show the pathway so far
+if "pathway" in st.session_state:
+    st.write(f"**Current Pathway: {st.session_state['pathway']}**")
+
+# Step 2: Tricuspid or Mitral Pathway
+if st.session_state["step"] == 2:
+    if st.session_state["pathway"] == "Tricuspid Valve":
+        st.header("Step 2: Tricuspid Valve Pathway")
+        qrs_transition = st.radio("Is the QRS transition ≤ V3?", ["", "Yes", "No"], index=0, key="qrs_tricuspid")
+        
+        if qrs_transition:
+            if qrs_transition == "Yes":
+                st.session_state["step"] = 3  # Go to Tricuspid QRS ≤ V3
+            else:
+                st.session_state["step"] = 4  # Go to Tricuspid QRS > V3
+            st.experimental_rerun()
     else:
-        # Step 3: Most Positive Delta Wave (Tricuspid QRS > V3)
-        st.header("Step 3: Delta Wave Analysis (Tricuspid Pathway, QRS > V3)")
-        delta_wave = st.radio("Where is the most positive delta wave?", ["Leads II or III", "Leads aVL or aVR"], key="delta_tricuspid_late")
+        st.header("Step 2: Mitral Valve Pathway")
+        delta_wave = st.radio("Where is the most positive delta wave?", ["", "aVL", "II or aVR", "III"], index=0, key="delta_mitral")
         
-        # Final diagnosis for Tricuspid (QRS > V3)
-        if delta_wave == "Leads II or III":
-            result = "Anteroseptal (AS)"
-        else:
-            result = "Posteroseptal (PS)"
+        if delta_wave:
+            if delta_wave == "aVL":
+                st.session_state["step"] = 5  # Mitral Pathway Refinement
+            else:
+                if delta_wave == "II or aVR":
+                    st.session_state["result"] = "Posterolateral (PL)"
+                else:
+                    st.session_state["result"] = "Anterolateral (AL)"
+                st.session_state["step"] = 6
+            st.experimental_rerun()
 
-elif valve_pathway == "Mitral Valve":
-    # Step 2: Most Positive Delta Wave (Mitral)
-    st.header("Step 2: Mitral Valve Pathway")
-    delta_wave = st.radio("Where is the most positive delta wave?", ["aVL", "II or aVR", "III"], key="delta_mitral")
+# Step 3: Tricuspid QRS ≤ V3
+if st.session_state["step"] == 3:
+    st.header("Step 3: Delta Wave Analysis (Tricuspid Pathway, QRS ≤ V3)")
+    delta_wave = st.radio("Where is the most positive delta wave?", ["", "Leads II or III", "Leads aVL or aVR"], index=0, key="delta_tricuspid")
     
-    # Step 3: Most Negative Delta Wave (Mitral Pathway Refinement)
-    if delta_wave == "aVL":
-        st.header("Step 3: Delta Wave Analysis (Mitral Pathway)")
-        negative_delta_wave = st.radio("Where is the most negative delta wave?", ["aVR", "aVL"], key="negative_delta_mitral")
-        
+    if delta_wave:
+        if delta_wave == "Leads II or III":
+            st.session_state["result"] = "Anteroseptal (AS)"
+        else:
+            st.session_state["result"] = "Posteroseptal (PS)"
+        st.session_state["step"] = 6
+        st.experimental_rerun()
+
+# Step 4: Tricuspid QRS > V3
+if st.session_state["step"] == 4:
+    st.header("Step 3: Delta Wave Analysis (Tricuspid Pathway, QRS > V3)")
+    delta_wave = st.radio("Where is the most positive delta wave?", ["", "Leads II or III", "Leads aVL or aVR"], index=0, key="delta_tricuspid_late")
+    
+    if delta_wave:
+        if delta_wave == "Leads II or III":
+            st.session_state["result"] = "Anteroseptal (AS)"
+        else:
+            st.session_state["result"] = "Posteroseptal (PS)"
+        st.session_state["step"] = 6
+        st.experimental_rerun()
+
+# Step 5: Mitral Pathway Refinement
+if st.session_state["step"] == 5:
+    st.header("Step 3: Delta Wave Analysis (Mitral Pathway Refinement)")
+    negative_delta_wave = st.radio("Where is the most negative delta wave?", ["", "aVR", "aVL"], index=0, key="negative_delta_mitral")
+    
+    if negative_delta_wave:
         if negative_delta_wave == "aVR":
-            result = "Posteroseptal (PS)"
+            st.session_state["result"] = "Posteroseptal (PS)"
         else:
-            result = "Posterolateral (PL)"
-    elif delta_wave == "II or aVR":
-        result = "Posterolateral (PL)"
-    else:
-        result = "Anterolateral (AL)"
+            st.session_state["result"] = "Posterolateral (PL)"
+        st.session_state["step"] = 6
+        st.experimental_rerun()
 
-# Display the final result only after all questions are answered
-if "result" in locals():
-    st.success(f"**Accessory Pathway: {result}**")
+# Step 6: Display Final Result
+if st.session_state["step"] == 6:
+    st.success(f"**Accessory Pathway: {st.session_state['result']}**")
+    st.button("Start Over", on_click=reset)
